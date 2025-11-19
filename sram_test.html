@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRAM Bluetooth Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        button.action {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .status {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #e0e0e0;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-container {
+            background: #f5f5f5;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #ddd;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .log-timestamp {
+            color: #888;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .log-type {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .log-type.info {
+            color: #2196F3;
+        }
+
+        .log-type.success {
+            color: #4caf50;
+        }
+
+        .log-type.warning {
+            color: #ff9800;
+        }
+
+        .log-type.error {
+            color: #f44336;
+        }
+
+        .log-type.shift {
+            color: #9c27b0;
+        }
+
+        .copy-button {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .device-info {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .device-info p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚴 SRAM Bluetooth Test</h1>
+            <p class="subtitle">Connect to SRAM devices and test shift operations</p>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px;">
+                    <input type="checkbox" id="onlySramCheckbox" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span>Only SRAM devices</span>
+                </label>
+            </div>
+            <div class="button-group">
+                <button id="connectBtn" onclick="connectDevice()">Connect to Device</button>
+                <button id="disconnectBtn" onclick="disconnectDevice()" disabled>Disconnect</button>
+                <button id="readAllBtn" onclick="readAllCharacteristics()" disabled>Read All</button>
+            </div>
+        </div>
+
+        <div class="status">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <span id="statusText">Not connected</span>
+            <div id="deviceInfo" class="device-info" style="display: none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>
+                Shift Controls
+                <div class="button-group">
+                    <button class="secondary" id="shiftUpBtn" onclick="shiftUp()" disabled>⬆️ Shift Up</button>
+                    <button class="secondary" id="shiftDownBtn" onclick="shiftDown()" disabled>⬇️ Shift Down</button>
+                </div>
+            </h2>
+        </div>
+
+        <div class="card">
+            <h2>
+                Logs
+                <button class="copy-button action" onclick="copyLogs()">📋 Copy to Clipboard</button>
+            </h2>
+            <div class="logs-container" id="logsContainer">
+                <div class="log-entry">
+                    <span class="log-timestamp">[--:--:--]</span>
+                    <span class="log-type info">[INFO]</span>
+                    <span>Ready to connect to SRAM device...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let device = null;
+        let server = null;
+        let subscribedCharacteristics = [];
+        
+        // Common service UUIDs to exclude
+        const COMMON_SERVICES = [
+            '0000180a-0000-1000-8000-00805f9b34fb', // Device Information
+            '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
+            '00001800-0000-1000-8000-00805f9b34fb', // Generic Access
+            '00001801-0000-1000-8000-00805f9b34fb', // Generic Attribute
+        ];
+
+        function log(message, type = 'info') {
+            const logsContainer = document.getElementById('logsContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'log-timestamp';
+            timestampSpan.textContent = `[${timestamp}]`;
+            
+            const typeSpan = document.createElement('span');
+            typeSpan.className = `log-type ${type}`;
+            typeSpan.textContent = `[${type.toUpperCase()}]`;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            
+            logEntry.appendChild(timestampSpan);
+            logEntry.appendChild(typeSpan);
+            logEntry.appendChild(messageSpan);
+            
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        async function connectDevice() {
+            try {
+                const onlySram = document.getElementById('onlySramCheckbox').checked;
+                
+                if (onlySram) {
+                    log('Requesting SRAM device...', 'info');
+                    
+                    // Request device with name filter and SRAM services
+                    // The device picker will only show devices starting with "SRAM "
+                    // Include all known SRAM service UUIDs to ensure access
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{
+                            namePrefix: 'SRAM '
+                        }],
+                        optionalServices: [
+                            '0000fe51-0000-1000-8000-00805f9b34fb',
+                            '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
+                            'd9050001-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905ee51-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905fff0-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050053-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050005-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905001f-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050023-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd90500f0-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd90500f5-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'adee0001-98b2-453c-a069-007ea97a0add',
+                            'adee0001-98b3-453c-a069-007ea97a0add',
+                            'd90500c0-90aa-4c7c-b036-1e01fb8eb7ee'
+                        ]
+                    });
+                } else {
+                    log('Requesting any BLE device...', 'info');
+                    
+                    // Allow any device without service restrictions
+                    device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [] // No specific services
+                    });
+                }
+
+                log(`Device selected: ${device.name}`, 'success');
+                
+                // Connect to GATT server
+                log('Connecting to GATT server...', 'info');
+                server = await device.gatt.connect();
+                log('Connected to GATT server', 'success');
+
+                // Update UI
+                updateConnectionStatus(true);
+                const deviceInfoDiv = document.getElementById('deviceInfo');
+                deviceInfoDiv.innerHTML = ''; // Clear existing content
+                
+                const nameP = document.createElement('p');
+                const nameStrong = document.createElement('strong');
+                nameStrong.textContent = 'Device Name:';
+                nameP.appendChild(nameStrong);
+                nameP.appendChild(document.createTextNode(' ' + (device.name || 'Unknown')));
+                
+                const idP = document.createElement('p');
+                const idStrong = document.createElement('strong');
+                idStrong.textContent = 'Device ID:';
+                idP.appendChild(idStrong);
+                idP.appendChild(document.createTextNode(' ' + device.id));
+                
+                deviceInfoDiv.appendChild(nameP);
+                deviceInfoDiv.appendChild(idP);
+                deviceInfoDiv.style.display = 'block';
+
+                // Get all services
+                log('Discovering services...', 'info');
+                const services = await server.getPrimaryServices();
+                log(`Found ${services.length} services`, 'success');
+
+                // Subscribe to characteristics
+                await subscribeToCharacteristics(services);
+
+                // Add disconnect handler
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                console.error('Connection error:', error);
+            }
+        }
+
+        async function subscribeToCharacteristics(services) {
+            subscribedCharacteristics = [];
+            
+            for (const service of services) {
+                const serviceUuid = service.uuid.toLowerCase();
+                
+                // Skip common services
+                if (COMMON_SERVICES.includes(serviceUuid)) {
+                    log(`Skipping common service: ${serviceUuid}`, 'info');
+                    continue;
+                }
+
+                log(`Processing service: ${serviceUuid}`, 'info');
+                
+                try {
+                    const characteristics = await service.getCharacteristics();
+                    
+                    for (const characteristic of characteristics) {
+                        const properties = characteristic.properties;
+                        
+                        // Subscribe if it supports notify or indicate
+                        if (properties.notify || properties.indicate) {
+                            try {
+                                await characteristic.startNotifications();
+                                characteristic.addEventListener('characteristicvaluechanged', 
+                                    handleCharacteristicChange);
+                                
+                                subscribedCharacteristics.push({
+                                    service: serviceUuid,
+                                    characteristic: characteristic.uuid,
+                                    obj: characteristic
+                                });
+                                
+                                log(`Subscribed to ${characteristic.uuid} (Service: ${serviceUuid})`, 'success');
+                            } catch (error) {
+                                log(`Failed to subscribe to ${characteristic.uuid}: ${error.message}`, 'warning');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    log(`Error processing service ${serviceUuid}: ${error.message}`, 'warning');
+                }
+            }
+            
+            log(`Subscribed to ${subscribedCharacteristics.length} characteristics`, 'success');
+        }
+
+        function handleCharacteristicChange(event) {
+            const characteristic = event.target;
+            const value = event.target.value;
+            
+            // Convert value to hex string
+            const hexString = Array.from(new Uint8Array(value.buffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join(' ');
+            
+            // Also try to decode as string if possible
+            let stringValue = '';
+            try {
+                const decoder = new TextDecoder('utf-8');
+                stringValue = decoder.decode(value);
+                // Only include if it contains printable characters
+                if (!/^[\x20-\x7E]+$/.test(stringValue)) {
+                    stringValue = '';
+                }
+            } catch (e) {
+                // Ignore decode errors
+            }
+            
+            const message = `Notification from ${characteristic.uuid}: [${hexString}]${stringValue ? ` "${stringValue}"` : ''}`;
+            log(message, 'info');
+        }
+
+        async function readAllCharacteristics() {
+            if (!server) {
+                log('Not connected to device', 'error');
+                return;
+            }
+
+            log('Reading all characteristics...', 'info');
+            const services = await server.getPrimaryServices();
+            let readCount = 0;
+
+            for (const service of services) {
+                const serviceUuid = service.uuid.toLowerCase();
+                
+                // Skip common services
+                if (COMMON_SERVICES.includes(serviceUuid)) {
+                    continue;
+                }
+
+                try {
+                    const characteristics = await service.getCharacteristics();
+                    
+                    for (const characteristic of characteristics) {
+                        if (characteristic.properties.read) {
+                            try {
+                                const value = await characteristic.readValue();
+                                const hexString = Array.from(new Uint8Array(value.buffer))
+                                    .map(b => b.toString(16).padStart(2, '0'))
+                                    .join(' ');
+                                
+                                let stringValue = '';
+                                try {
+                                    const decoder = new TextDecoder('utf-8');
+                                    stringValue = decoder.decode(value);
+                                    if (!/^[\x20-\x7E]+$/.test(stringValue)) {
+                                        stringValue = '';
+                                    }
+                                } catch (e) {
+                                    // Ignore
+                                }
+                                
+                                const message = `Read ${characteristic.uuid} (Service: ${serviceUuid}): [${hexString}]${stringValue ? ` "${stringValue}"` : ''}`;
+                                log(message, 'success');
+                                readCount++;
+                            } catch (error) {
+                                log(`Failed to read ${characteristic.uuid}: ${error.message}`, 'warning');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    log(`Error reading service ${serviceUuid}: ${error.message}`, 'warning');
+                }
+            }
+
+            log(`Read ${readCount} characteristics`, 'success');
+        }
+
+        function shiftUp() {
+            log('=== SHIFT UP BUTTON PRESSED ===', 'shift');
+            log('Please press the SHIFT UP button on your SRAM shifter now!', 'shift');
+            log('Watching for characteristic changes...', 'shift');
+        }
+
+        function shiftDown() {
+            log('=== SHIFT DOWN BUTTON PRESSED ===', 'shift');
+            log('Please press the SHIFT DOWN button on your SRAM shifter now!', 'shift');
+            log('Watching for characteristic changes...', 'shift');
+        }
+
+        function disconnectDevice() {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+                log('Disconnected from device', 'info');
+            }
+            updateConnectionStatus(false);
+        }
+
+        function onDisconnected() {
+            log('Device disconnected', 'warning');
+            updateConnectionStatus(false);
+            server = null;
+            device = null;
+            subscribedCharacteristics = [];
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const readAllBtn = document.getElementById('readAllBtn');
+            const shiftUpBtn = document.getElementById('shiftUpBtn');
+            const shiftDownBtn = document.getElementById('shiftDownBtn');
+
+            if (connected) {
+                statusIndicator.classList.add('connected');
+                statusText.textContent = `Connected to ${device.name}`;
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                readAllBtn.disabled = false;
+                shiftUpBtn.disabled = false;
+                shiftDownBtn.disabled = false;
+            } else {
+                statusIndicator.classList.remove('connected');
+                statusText.textContent = 'Not connected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                readAllBtn.disabled = true;
+                shiftUpBtn.disabled = true;
+                shiftDownBtn.disabled = true;
+                document.getElementById('deviceInfo').style.display = 'none';
+            }
+        }
+
+        function copyLogs() {
+            const logsContainer = document.getElementById('logsContainer');
+            const logEntries = logsContainer.querySelectorAll('.log-entry');
+            
+            let logsText = '';
+            logEntries.forEach(entry => {
+                logsText += entry.textContent.trim() + '\n';
+            });
+
+            navigator.clipboard.writeText(logsText).then(() => {
+                log('Logs copied to clipboard!', 'success');
+            }).catch(err => {
+                log(`Failed to copy logs: ${err.message}`, 'error');
+            });
+        }
+
+        // Check for Web Bluetooth API support
+        if (!navigator.bluetooth) {
+            log('Web Bluetooth API is not available in this browser!', 'error');
+            log('Please use Chrome, Edge, or Opera browser.', 'error');
+            document.getElementById('connectBtn').disabled = true;
+        }
+    </script>
+</body>
+</html>
