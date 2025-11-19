@@ -205,8 +205,14 @@
         <div class="header">
             <h1>🚴 SRAM Bluetooth Test</h1>
             <p class="subtitle">Connect to SRAM devices and test shift operations</p>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px;">
+                    <input type="checkbox" id="onlySramCheckbox" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span>Only SRAM devices</span>
+                </label>
+            </div>
             <div class="button-group">
-                <button id="connectBtn" onclick="connectDevice()">Connect to SRAM Device</button>
+                <button id="connectBtn" onclick="connectDevice()">Connect to Device</button>
                 <button id="disconnectBtn" onclick="disconnectDevice()" disabled>Disconnect</button>
                 <button id="readAllBtn" onclick="readAllCharacteristics()" disabled>Read All</button>
             </div>
@@ -262,11 +268,21 @@
             
             const logEntry = document.createElement('div');
             logEntry.className = 'log-entry';
-            logEntry.innerHTML = `
-                <span class="log-timestamp">[${timestamp}]</span>
-                <span class="log-type ${type}">[${type.toUpperCase()}]</span>
-                <span>${message}</span>
-            `;
+            
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'log-timestamp';
+            timestampSpan.textContent = `[${timestamp}]`;
+            
+            const typeSpan = document.createElement('span');
+            typeSpan.className = `log-type ${type}`;
+            typeSpan.textContent = `[${type.toUpperCase()}]`;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            
+            logEntry.appendChild(timestampSpan);
+            logEntry.appendChild(typeSpan);
+            logEntry.appendChild(messageSpan);
             
             logsContainer.appendChild(logEntry);
             logsContainer.scrollTop = logsContainer.scrollHeight;
@@ -274,32 +290,44 @@
 
         async function connectDevice() {
             try {
-                log('Requesting SRAM device...', 'info');
+                const onlySram = document.getElementById('onlySramCheckbox').checked;
                 
-                // Request device with name filter
-                // The device picker will only show devices starting with "SRAM "
-                // Include all known SRAM service UUIDs to ensure access
-                device = await navigator.bluetooth.requestDevice({
-                    filters: [{
-                        namePrefix: 'SRAM '
-                    }],
-                    optionalServices: [
-                        '0000fe51-0000-1000-8000-00805f9b34fb',
-                        '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
-                        'd9050001-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd905ee51-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd905fff0-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd9050053-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd9050005-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd905001f-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd9050023-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd90500f0-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'd90500f5-90aa-4c7c-b036-1e01fb8eb7ee',
-                        'adee0001-98b2-453c-a069-007ea97a0add',
-                        'adee0001-98b3-453c-a069-007ea97a0add',
-                        'd90500c0-90aa-4c7c-b036-1e01fb8eb7ee'
-                    ]
-                });
+                if (onlySram) {
+                    log('Requesting SRAM device...', 'info');
+                    
+                    // Request device with name filter and SRAM services
+                    // The device picker will only show devices starting with "SRAM "
+                    // Include all known SRAM service UUIDs to ensure access
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{
+                            namePrefix: 'SRAM '
+                        }],
+                        optionalServices: [
+                            '0000fe51-0000-1000-8000-00805f9b34fb',
+                            '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
+                            'd9050001-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905ee51-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905fff0-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050053-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050005-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd905001f-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050023-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd90500f0-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd90500f5-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'adee0001-98b2-453c-a069-007ea97a0add',
+                            'adee0001-98b3-453c-a069-007ea97a0add',
+                            'd90500c0-90aa-4c7c-b036-1e01fb8eb7ee'
+                        ]
+                    });
+                } else {
+                    log('Requesting any BLE device...', 'info');
+                    
+                    // Allow any device without service restrictions
+                    device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [] // No specific services
+                    });
+                }
 
                 log(`Device selected: ${device.name}`, 'success');
                 
@@ -310,11 +338,24 @@
 
                 // Update UI
                 updateConnectionStatus(true);
-                document.getElementById('deviceInfo').innerHTML = `
-                    <p><strong>Device Name:</strong> ${device.name || 'Unknown'}</p>
-                    <p><strong>Device ID:</strong> ${device.id}</p>
-                `;
-                document.getElementById('deviceInfo').style.display = 'block';
+                const deviceInfoDiv = document.getElementById('deviceInfo');
+                deviceInfoDiv.innerHTML = ''; // Clear existing content
+                
+                const nameP = document.createElement('p');
+                const nameStrong = document.createElement('strong');
+                nameStrong.textContent = 'Device Name:';
+                nameP.appendChild(nameStrong);
+                nameP.appendChild(document.createTextNode(' ' + (device.name || 'Unknown')));
+                
+                const idP = document.createElement('p');
+                const idStrong = document.createElement('strong');
+                idStrong.textContent = 'Device ID:';
+                idP.appendChild(idStrong);
+                idP.appendChild(document.createTextNode(' ' + device.id));
+                
+                deviceInfoDiv.appendChild(nameP);
+                deviceInfoDiv.appendChild(idP);
+                deviceInfoDiv.style.display = 'block';
 
                 // Get all services
                 log('Discovering services...', 'info');
