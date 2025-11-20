@@ -306,6 +306,7 @@
                             '0000fe51-0000-1000-8000-00805f9b34fb',
                             '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
                             'd9050001-90aa-4c7c-b036-1e01fb8eb7ee',
+                            'd9050003-90aa-4c7c-b036-1e01fb8eb7ee',
                             'd905ee51-90aa-4c7c-b036-1e01fb8eb7ee',
                             'd905fff0-90aa-4c7c-b036-1e01fb8eb7ee',
                             'd9050053-90aa-4c7c-b036-1e01fb8eb7ee',
@@ -445,6 +446,17 @@
             
             const message = `Notification from ${characteristic.uuid}: [${hexString}]${stringValue ? ` "${stringValue}"` : ''}`;
             log(message, 'info');
+            
+            // Check if this is the specific characteristic with value 0xFF
+            const targetUuid = 'd9050003-90aa-4c7c-b036-1e01fb8eb7ee';
+            if (characteristic.uuid.toLowerCase() === targetUuid) {
+                const bytes = new Uint8Array(value.buffer);
+                // Check if the value is 0xFF (single byte with value 255)
+                if (bytes.length === 1 && bytes[0] === 0xFF) {
+                    log('Detected 0xFF from d9050003-90aa-4c7c-b036-1e01fb8eb7ee, triggering readAllCharacteristics()...', 'success');
+                    readAllCharacteristics();
+                }
+            }
         }
 
         async function readAllCharacteristics() {
