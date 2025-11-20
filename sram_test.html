@@ -261,6 +261,10 @@
             '00001800-0000-1000-8000-00805f9b34fb', // Generic Access
             '00001801-0000-1000-8000-00805f9b34fb', // Generic Attribute
         ];
+        
+        // Auto-trigger configuration
+        const AUTO_TRIGGER_UUID = 'd9050003-90aa-4c7c-b036-1e01fb8eb7ee';
+        const AUTO_TRIGGER_VALUE = 0xFF;
 
         function log(message, type = 'info') {
             const logsContainer = document.getElementById('logsContainer');
@@ -306,6 +310,7 @@
                             '0000fe51-0000-1000-8000-00805f9b34fb',
                             '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
                             'd9050001-90aa-4c7c-b036-1e01fb8eb7ee',
+                            AUTO_TRIGGER_UUID,
                             'd905ee51-90aa-4c7c-b036-1e01fb8eb7ee',
                             'd905fff0-90aa-4c7c-b036-1e01fb8eb7ee',
                             'd9050053-90aa-4c7c-b036-1e01fb8eb7ee',
@@ -445,6 +450,16 @@
             
             const message = `Notification from ${characteristic.uuid}: [${hexString}]${stringValue ? ` "${stringValue}"` : ''}`;
             log(message, 'info');
+            
+            // Check if this is the specific characteristic with value 0xFF
+            if (characteristic.uuid.toLowerCase() === AUTO_TRIGGER_UUID) {
+                const bytes = new Uint8Array(value.buffer);
+                // Check if the value is 0xFF (single byte with value 255)
+                if (bytes.length === 1 && bytes[0] === AUTO_TRIGGER_VALUE) {
+                    log(`Detected 0x${AUTO_TRIGGER_VALUE.toString(16).toUpperCase()} from ${AUTO_TRIGGER_UUID}, triggering readAllCharacteristics()...`, 'success');
+                    readAllCharacteristics();
+                }
+            }
         }
 
         async function readAllCharacteristics() {
